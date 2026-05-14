@@ -68,7 +68,7 @@ from models.loader     import ModelLoader
 from geometry.ground_plane import (
     detect_vanishing_point, estimate_ground_plane, refine_with_object,
 )
-from geometry.waterline    import extract_waterline
+from geometry.waterline    import extract_waterline, reset_ema
 
 from estimators.person        import estimate_depth_person
 from estimators.car           import estimate_depth_car
@@ -96,6 +96,7 @@ class FloodDetectionSystem:
         t0 = time.time()
         Path(output_dir).mkdir(parents=True, exist_ok=True)
 
+        reset_ema()   # 이미지마다 EMA 상태 초기화
         img = cv2.imread(image_path)
         if img is None:
             raise FileNotFoundError(f"이미지 읽기 실패: {image_path}")
@@ -257,20 +258,45 @@ class FloodDetectionSystem:
             print(f"  → {est.detail}")
 
         # ─────────────────────────────────────────────────────
-        # STEP 9: Flood Seg 수위 추정 (scale hint 적용)
-        # ─────────────────────────────────────────────────────
-        if result.waterline and result.waterline.valid:
-            print("\n[STEP 9] Seg 수면선 → 수위 변환...")
-            # 가장 신뢰도 높은 scale hint 선택
-            scale_hint = self._best_scale_hint(result)
-            seg_est = estimate_depth_seg(
-                result.waterline, img_h, img_w, scale_hint)
-            if seg_est:
-                result.depth_estimates.append(seg_est)
-                print(f"  → Seg 수위: {seg_est.depth_cm:.1f}cm ±{seg_est.uncertainty_cm:.1f}cm "
-                      f"(신뢰도: {seg_est.confidence:.0%})")
 
         # ─────────────────────────────────────────────────────
+        # ─────────────────────────────────────────────────────
+        # STEP 9: Flood Seg boundary → flood_ratio × 참조높이 수위 추정
+        # ─────────────────────────────────────────────────────
+        if result.waterline and result.waterline.valid:
+            print("\n[STEP 9] Seg boundary waterline → 수위 변환...")
+
+            # 검출된 객체들의 실제높이(cm) 수집 → ref_heights_cm
+            from utils.config import BODY_HEIGHT_TABLE, CAR_TOTAL_HEIGHT_RANGE
+            ref_heights = []
+            for e in result.depth_estimates:
+                if e.source == "person":
+                    # 사람: detail에서 body_key 추출
+                    for bk in ["adult_male","adult_female","child"]:
+                        if bk in e.detail:
+                            ref_heights.append(BODY_HEIGHT_TABLE[bk]["shoulder"])
+                            break
+                elif e.source == "car":
+                    # 차량: detail에서 car_type 추출
+                    for ct in ["sedan","suv","mini","pickup","bus"]:
+                        if ct in e.detail:
+                            lo, hi = CAR_TOTAL_HEIGHT_RANGE[ct]
+                            ref_heights.append((lo+hi)/2)
+                            break
+
+            seg_est = estimate_depth_seg(
+                result.waterline, img_h, img_w,
+                ref_heights_cm=ref_heights if ref_heights else None,
+            )
+            if seg_est and seg_est.depth_cm > 0:
+                result.depth_estimates.append(seg_est)
+                print(f"  → Seg 수위: {seg_est.depth_cm:.1f}cm "
+                      f"±{seg_est.uncertainty_cm:.1f}cm "
+                      f"(신뢰도: {seg_est.confidence:.0%})")
+            else:
+                print(f"  → Seg: 유효한 수위 추정 불가 "
+                      f"(boundary y={result.waterline.waterline_y:.0f}px 확인됨)")
+
         # STEP 10: Weighted Fusion (IQR + Uncertainty-aware)
         # ─────────────────────────────────────────────────────
         print("\n[STEP 10] Weighted Fusion (IQR outlier 제거 + 불확실도 보정)...")

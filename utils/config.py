@@ -12,7 +12,7 @@ MODEL_FILES = {
     "child":     "child_classifier_EfficentNet-B0_ver2.pth",
     "gender":    "gender_classifier_EfficentNet-B0.pth",
     "car_cls":   "car_classification_EfficentNet-B0.pth",   # NEW
-    "flood_seg": "flood_semtic_seg.keras",
+    "flood_seg": "data_add_flood_sementic_segmentation.keras",
     "yolo_main": "yolo11n.pt",
     "yolo_pose": "yolo11n-pose.pt",
     "yolo_car":  "car_part_segmentation.pt",
@@ -94,6 +94,15 @@ CAR_TOTAL_HEIGHT_CM = {
     "mini":   148.0,   # 경차 평균 (모닝 등)
     "pickup": 185.0,   # 픽업트럭 평균
     "bus":    310.0,   # 버스 평균
+}
+
+# 차량 높이 범위 (min, max) — uncertainty 계산용
+CAR_TOTAL_HEIGHT_RANGE = {
+    "sedan":  (135.0, 160.0),
+    "suv":    (160.0, 195.0),
+    "mini":   (140.0, 165.0),
+    "pickup": (175.0, 210.0),
+    "bus":    (280.0, 340.0),
 }
 
 # ── YOLO cls id → 기본 차종 매핑 (EfficientNet 없을 때 fallback) ─

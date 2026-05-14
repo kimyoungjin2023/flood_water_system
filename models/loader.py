@@ -242,7 +242,7 @@ class ModelLoader:
         model = _load_keras_seg()
         self.M["flood_seg"] = model
         if model:
-            print("║    ✅ flood_semtic_seg.keras  (Attention U-Net 256×256)")
+            print("║    ✅ data_add_flood_sementic_segmentation.keras  (Attention U-Net 256×256)")
         else:
             print("║    ⚠️  Seg 없음")
 

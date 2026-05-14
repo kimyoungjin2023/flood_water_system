@@ -34,4 +34,6 @@ flood_system/
 현재 DEMO 모델- 수정 중
 
 
-### Taeksan 소속
+### [Taeksan 소속](https://taeksan.co.kr/)
+
+지금 확인해보니까 flood_sementic_segmentation에서 y좌표값이 가능 높은데로 하는데 그렇게 되면 원거리에 있는게 가장 높고 등등의 문제가 일어남 이거 확인해보기
